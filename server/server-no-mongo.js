@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env. || 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || 'https://interviewwithai-smoky.vercel.app',
   credentials: true
 }));
 
@@ -167,7 +167,7 @@ app.use('*', (req, res) => {
 // Start server without MongoDB
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} (MOCK MODE - No MongoDB required)`);
-  console.log(`📱 Frontend should be available at http://localhost:3000`);
+  console.log(`📱 Frontend should be available at https://interviewwithai-smoky.vercel.app`);
   console.log(`🔧 Backend API available at http://localhost:${PORT}`);
   console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
 });
