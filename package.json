@@ -1,0 +1,21 @@
+{
+  "name": "ai-interview-app",
+  "version": "1.0.0",
+  "description": "MERN stack interview application with AI integration and speech capabilities",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev-mock": "concurrently \"npm run server-mock\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "server-mock": "cd server && npm run dev-mock",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build"
+  },
+  "keywords": ["mern", "ai", "interview", "speech", "react", "nodejs"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 

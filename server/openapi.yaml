@@ -1,0 +1,754 @@
+openapi: 3.0.3
+info:
+  title: AI Interview Application API
+  description: |
+    A comprehensive API for AI-powered interview practice application.
+    Features include user authentication, interview session management, and AI integration with voice capabilities.
+  version: 1.0.0
+  contact:
+    name: AI Interview App Support
+    email: support@aiinterview.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.aiinterview.com
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: User ID
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        role:
+          type: string
+          enum: [user, admin]
+          default: user
+        preferences:
+          type: object
+          properties:
+            voiceEnabled:
+              type: boolean
+              default: true
+            defaultRolePrompt:
+              type: string
+        interviewHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewHistory'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InterviewHistory:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        rolePrompt:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        totalQuestions:
+          type: integer
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+
+    InterviewSession:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        userId:
+          type: string
+        rolePrompt:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        totalQuestions:
+          type: integer
+        totalDuration:
+          type: integer
+          description: Duration in seconds
+        settings:
+          type: object
+          properties:
+            voiceEnabled:
+              type: boolean
+            maxQuestions:
+              type: integer
+            timeLimit:
+              type: integer
+        analytics:
+          type: object
+          properties:
+            averageResponseTime:
+              type: number
+            totalWords:
+              type: integer
+            confidenceScore:
+              type: number
+
+    Message:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        inputType:
+          type: string
+          enum: [text, voice]
+        audioUrl:
+          type: string
+        feedback:
+          $ref: '#/components/schemas/Feedback'
+
+    Feedback:
+      type: object
+      properties:
+        grammar:
+          type: string
+          enum: [excellent, good, fair, needs_improvement]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 10
+        notes:
+          type: string
+
+    RolePrompt:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        prompt:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      description: Check if the server is running
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "OK"
+                  message:
+                    type: string
+                    example: "AI Interview Server is running"
+
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      description: Create a new user account
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  example: "John Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      summary: Login user
+      description: Authenticate user and return JWT token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/profile:
+    get:
+      summary: Get user profile
+      description: Retrieve current user's profile information
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update user profile
+      description: Update user's profile information
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                preferences:
+                  type: object
+                  properties:
+                    voiceEnabled:
+                      type: boolean
+                    defaultRolePrompt:
+                      type: string
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/history:
+    get:
+      summary: Get interview history
+      description: Retrieve user's interview history
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Interview history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interviewHistory:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewHistory'
+
+  /api/interview/start:
+    post:
+      summary: Start new interview session
+      description: Create a new interview session with specified role prompt
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rolePrompt
+              properties:
+                rolePrompt:
+                  type: string
+                  description: The role prompt for the AI interviewer
+                  example: "You are an HR interviewer at Google conducting a technical interview."
+                settings:
+                  type: object
+                  properties:
+                    voiceEnabled:
+                      type: boolean
+                      default: true
+                    maxQuestions:
+                      type: integer
+                      default: 10
+                    timeLimit:
+                      type: integer
+                      default: 30
+                      description: Time limit in minutes
+      responses:
+        '201':
+          description: Interview session started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  session:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      rolePrompt:
+                        type: string
+                      settings:
+                        type: object
+                      startTime:
+                        type: string
+                        format: date-time
+
+  /api/interview/session/{sessionId}:
+    get:
+      summary: Get session details
+      description: Retrieve details of a specific interview session
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The session ID
+      responses:
+        '200':
+          description: Session details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: '#/components/schemas/InterviewSession'
+        '404':
+          description: Session not found
+
+  /api/interview/session/{sessionId}/message:
+    post:
+      summary: Add message to session
+      description: Add a user message to the interview session
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: The message content
+                inputType:
+                  type: string
+                  enum: [text, voice]
+                  default: text
+                audioUrl:
+                  type: string
+                  format: uri
+                  description: URL to audio file (optional)
+      responses:
+        '200':
+          description: Message added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  sessionId:
+                    type: string
+                  messageCount:
+                    type: integer
+
+  /api/interview/session/{sessionId}/end:
+    post:
+      summary: End interview session
+      description: End an active interview session
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session ended successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  session:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      status:
+                        type: string
+                      totalQuestions:
+                        type: integer
+                      totalDuration:
+                        type: integer
+                      analytics:
+                        type: object
+
+  /api/interview/session/{sessionId}/abandon:
+    post:
+      summary: Abandon interview session
+      description: Abandon an active interview session
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session abandoned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  sessionId:
+                    type: string
+
+  /api/interview/active:
+    get:
+      summary: Get active sessions
+      description: Retrieve all active interview sessions for the user
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Active sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewSession'
+
+  /api/interview/session/{sessionId}/messages:
+    get:
+      summary: Get session messages
+      description: Retrieve all messages from a specific session
+      tags: [Interview]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+
+  /api/ai/chat:
+    post:
+      summary: Get AI response
+      description: Get AI response for interview conversation
+      tags: [AI]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sessionId
+                - message
+              properties:
+                sessionId:
+                  type: string
+                  description: The session ID
+                message:
+                  type: string
+                  description: The user's message
+      responses:
+        '200':
+          description: AI response generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  response:
+                    type: string
+                  feedback:
+                    $ref: '#/components/schemas/Feedback'
+                  sessionId:
+                    type: string
+
+  /api/ai/transcribe:
+    post:
+      summary: Transcribe audio
+      description: Convert speech to text using OpenAI Whisper
+      tags: [AI]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file to transcribe
+      responses:
+        '200':
+          description: Audio transcribed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  text:
+                    type: string
+
+  /api/ai/synthesize:
+    post:
+      summary: Synthesize speech
+      description: Convert text to speech using OpenAI TTS
+      tags: [AI]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: Text to convert to speech
+                voice:
+                  type: string
+                  enum: [alloy, echo, fable, onyx, nova, shimmer]
+                  default: alloy
+      responses:
+        '200':
+          description: Speech synthesized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  audio:
+                    type: string
+                    description: Base64 encoded audio data
+                  format:
+                    type: string
+                    example: "mp3"
+
+  /api/ai/role-prompts:
+    get:
+      summary: Get role prompts
+      description: Retrieve available role prompt suggestions
+      tags: [AI]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Role prompts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rolePrompts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RolePrompt'
+
+tags:
+  - name: Authentication
+    description: User authentication and profile management
+  - name: Interview
+    description: Interview session management
+  - name: AI
+    description: AI integration and voice processing 
